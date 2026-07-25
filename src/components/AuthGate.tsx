@@ -9,7 +9,7 @@ interface AuthGateProps {
 }
 
 /**
- * Wraps the app. Shows a magic-link login form until the user is
+ * Wraps the app. Shows an intro guide + Google sign-in until the user is
  * authenticated, then renders children with the active session.
  * This is how multiple friends can each have their own private
  * accumulated data on the same deployed app (RLS keeps it separated).
@@ -18,8 +18,6 @@ export function AuthGate({ children }: AuthGateProps) {
   const { t, language, setLanguage } = useI18n();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -31,12 +29,6 @@ export function AuthGate({ children }: AuthGateProps) {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (!error) setSent(true);
-  }
 
   async function handleGoogleSignIn() {
     await supabase.auth.signInWithOAuth({
@@ -91,30 +83,6 @@ export function AuthGate({ children }: AuthGateProps) {
           </svg>
           {t('continueWithGoogle')}
         </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0', color: 'var(--mist)', fontSize: 12 }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--paper-dim)' }} />
-          {t('orContinueWithEmail')}
-          <div style={{ flex: 1, height: 1, background: 'var(--paper-dim)' }} />
-        </div>
-
-        {sent ? (
-          <p>{t('checkEmail')}</p>
-        ) : (
-          <form onSubmit={handleLogin}>
-            <input
-              type="email"
-              required
-              placeholder={t('emailPlaceholder')}
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              style={{ padding: 8, width: '100%', marginBottom: 8 }}
-            />
-            <button type="submit" style={{ padding: '8px 16px', width: '100%' }}>
-              {t('sendMagicLink')}
-            </button>
-          </form>
-        )}
         </div>
       </div>
     );
