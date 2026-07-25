@@ -9,6 +9,7 @@ import { supabase } from './lib/supabaseClient';
 import { useI18n } from './lib/i18n';
 import { SettingsProvider, useSettingsContext } from './lib/SettingsContext';
 import { COMMON_CURRENCIES } from './lib/exchangeRates';
+import { IntroGuide } from './components/IntroGuide';
 
 type Tab = 'dashboard' | 'upload' | 'budget';
 
@@ -30,12 +31,19 @@ function AppContent({ session }: { session: Session }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const { t, language, setLanguage } = useI18n();
   const { baseCurrency, updateBaseCurrency } = useSettingsContext();
+  const [showGuide, setShowGuide] = useState(false);
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(16px, 5vw, 32px) clamp(12px, 4vw, 20px)', fontFamily: 'var(--font-body)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', margin: 0 }}>{t('appTitle')}</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowGuide(true)}
+            style={{ background: 'none', border: '1px solid var(--paper-dim)', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}
+          >
+            {t('guideButton')}
+          </button>
           <button
             onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
             style={{ background: 'none', border: '1px solid var(--paper-dim)', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}
@@ -50,6 +58,26 @@ function AppContent({ session }: { session: Session }) {
           </button>
         </div>
       </div>
+
+      {showGuide && (
+        <div
+          onClick={() => setShowGuide(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,35,64,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: 16, padding: 28, maxWidth: 700, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}
+          >
+            <IntroGuide />
+            <button
+              onClick={() => setShowGuide(false)}
+              style={{ marginTop: 20, padding: '8px 20px', background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 8 }}
+            >
+              {t('closeGuide')}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 13, color: 'var(--mist)' }}>
         <label>{t('baseCurrency')}:</label>

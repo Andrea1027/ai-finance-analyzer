@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useI18n } from '../lib/i18n';
+import { IntroGuide } from './IntroGuide';
 
 interface AuthGateProps {
   children: (session: Session) => React.ReactNode;
@@ -14,7 +15,7 @@ interface AuthGateProps {
  * accumulated data on the same deployed app (RLS keeps it separated).
  */
 export function AuthGate({ children }: AuthGateProps) {
-  const { t } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -48,8 +49,22 @@ export function AuthGate({ children }: AuthGateProps) {
 
   if (!session) {
     return (
-      <div style={{ maxWidth: 360, margin: '80px auto', textAlign: 'center' }}>
-        <h2>{t('signIn')}</h2>
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(24px, 6vw, 48px) clamp(16px, 4vw, 24px)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+            style={{ background: 'none', border: '1px solid var(--paper-dim)', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}
+          >
+            {language === 'en' ? '中文' : 'EN'}
+          </button>
+        </div>
+
+        <div style={{ marginBottom: 40 }}>
+          <IntroGuide />
+        </div>
+
+        <div style={{ maxWidth: 360, margin: '0 auto', textAlign: 'center', background: 'white', border: '1px solid var(--paper-dim)', borderRadius: 16, padding: 28 }}>
+        <h2 style={{ marginTop: 0 }}>{t('signIn')}</h2>
         <button
           onClick={handleGoogleSignIn}
           style={{
@@ -100,6 +115,7 @@ export function AuthGate({ children }: AuthGateProps) {
             </button>
           </form>
         )}
+        </div>
       </div>
     );
   }
