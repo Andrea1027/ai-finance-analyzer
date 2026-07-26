@@ -1,62 +1,86 @@
-# AI Finance Analyzer — Foundation (v0.1)
+# 💰 AI Finance Analyzer
 
-This is the first stage of the project: **CSV upload + accumulating data model.**
-No dashboard yet — that's next. Right now the goal is to prove the pipeline:
-Spendee CSV → parsed → stored in the cloud → safe to re-upload without duplicates.
+A free, open-source personal finance analyzer that goes beyond what typical budgeting apps show you. Upload monthly CSV exports from any budgeting app (Spendee, bank exports, etc.) and it accumulates them into a growing history — so you can see spending trends across months, get an AI-generated budget benchmark from your own data, and receive AI-generated spending insights, all in a visual dashboard.
 
-## What's included
+**Live demo:** https://ai-finance-analyzer-blush.vercel.app
 
-- `supabase/schema.sql` — the database schema (tables, security rules)
-- `src/lib/csvParser.ts` — parses the exact Spendee CSV format
-- `src/lib/importTransactions.ts` — saves parsed data to Supabase, creates categories, prevents duplicates
-- `src/components/AuthGate.tsx` — simple email magic-link login (so you and friends each get private accounts)
-- `src/components/CsvUpload.tsx` — the upload UI
-- `src/App.tsx` — wires it together
+## Why this exists
 
-## Setup (step by step)
+Most budgeting apps only show you one month at a time — a total and a per-category breakdown. They rarely let you see how your spending is *trending* across months, and they don't help you set or track a realistic budget based on your own history. This project accumulates every CSV you upload into one growing dataset, so those questions actually become answerable.
 
-### 1. Create a free Supabase project
-Go to [supabase.com](https://supabase.com) → New Project. Pick any name/region, set a database password (save it somewhere).
+## Features
 
-### 2. Run the schema
-In your Supabase project, go to **SQL Editor** → New query → paste the entire contents of `supabase/schema.sql` → Run.
+- **Accumulating CSV import** — every upload adds to your history rather than replacing it; duplicate transactions are automatically skipped, so re-uploading a file you're unsure about is always safe.
+- **Works with any budgeting app's export, not just Spendee** — recognized formats import automatically; unrecognized formats trigger a one-time column-mapping screen (map date/amount/category/etc.), which is then remembered for that file format going forward.
+- **Visual dashboard** — a "pulse strip" comparing this month's cumulative spend against last month's at the same point, a ranked category breakdown with budget markers, and a month-over-month trend chart.
+- **AI-generated budget benchmark** — analyzes your actual spending history and proposes a monthly budget (overall and per category) with brief reasoning, fully editable before saving. Falls back to a rule-based estimate if the AI call fails.
+- **AI-generated insights** — forward-looking spending insights as visual cards: budget warnings, month-end pace projections, and purchase-frequency-based suggestions (e.g. many small purchases in one category), not just budget-vs-actual restatements.
+- **Multi-currency** — pick a base currency; all transactions are converted live via a free exchange-rate API and cached daily.
+- **Bilingual (English / 中文)** — full UI translation, and AI-generated content (budget reasoning, insights) is generated in the selected language too.
+- **Multi-user, private by default** — Google sign-in, with Row Level Security on every table so each user's data is completely isolated from every other user's, even on shared infrastructure.
 
-This creates all the tables and locks each user's data to only be visible to them (Row Level Security).
+## Tech stack
 
-### 3. Get your API keys
-In Supabase: **Project Settings → API**. Copy the **Project URL** and the **anon public** key.
+- **Frontend:** React + TypeScript + Vite, Recharts for charts, hand-rolled i18n (no external library)
+- **Backend:** Supabase (Postgres database, Auth, Row Level Security, Edge Functions)
+- **AI:** OpenRouter's free model router (`openrouter/free`, currently serving Llama 3.3), called server-side from Supabase Edge Functions so the API key never reaches the browser
+- **Exchange rates:** open.er-api.com (free, no API key)
+- **Hosting:** Vercel (frontend), Supabase (database + Edge Functions) — entirely on free tiers
 
-### 4. Configure the app
+## Project structure
+
+```
+src/
+  components/     UI components (Dashboard, CsvUpload, BenchmarkSetup, InsightsPanel, etc.)
+  lib/            Data layer: CSV parsing, aggregations, Supabase hooks, i18n, exchange rates
+supabase/
+  schema.sql      Full database schema (tables, RLS policies)
+  functions/      Edge Functions (generate-benchmark, generate-insights)
+```
+
+## Setup
+
+### 1. Create a Supabase project
+Free at [supabase.com](https://supabase.com). Once created, run the entire contents of `supabase/schema.sql` in the SQL Editor to create all tables and RLS policies.
+
+### 2. Configure environment variables
 ```bash
 cp .env.example .env.local
 ```
-Paste your URL and anon key into `.env.local`.
+Fill in your Supabase Project URL and anon/publishable key (found under Project Settings → API).
 
-### 5. Install and run
+### 3. Set up Google sign-in
+- Create an OAuth Client ID in [Google Cloud Console](https://console.cloud.google.com) (APIs & Services → Credentials), with authorized redirect URI `https://<your-project-ref>.supabase.co/auth/v1/callback`
+- Enable the Google provider in Supabase (Authentication → Providers) and paste in the Client ID/Secret
+
+### 4. Deploy the Edge Functions
+Requires the [Supabase CLI](https://supabase.com/docs/guides/cli):
+```bash
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase functions deploy generate-benchmark
+supabase functions deploy generate-insights
+```
+
+### 5. Get a free OpenRouter API key
+Sign up at [openrouter.ai](https://openrouter.ai) (no credit card needed), then set it as a secret:
+```bash
+supabase secrets set OPENROUTER_API_KEY=your-key-here
+```
+
+### 6. Install and run
 ```bash
 npm install
 npm run dev
 ```
-Open the local URL it prints (usually `http://localhost:5173`).
 
-### 6. Try it
-Sign in with your email (you'll get a magic link — Supabase sends it automatically, no email server setup needed on the free tier). Then upload your Spendee CSV.
+### 7. Deploy (optional)
+Push to GitHub, then import the repo on [Vercel](https://vercel.com), adding `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables.
 
-## How the pipeline works (for learning)
+## Notes on the AI integration
 
-1. **Parse**: `csvParser.ts` reads the raw CSV text and turns each row into a clean object — converting the amount string to a number, the date to a proper timestamp, and tagging which calendar month it belongs to.
-2. **Categories**: `importTransactions.ts` checks which category names are new and creates them automatically with a default icon/color, so the UI has something to render later.
-3. **Uploads log**: every CSV you import gets one row in `uploads`, so later we can show "you've imported June, July, August..." and detect gaps.
-4. **Transactions accumulate**: unlike Spendee's own view, nothing here gets overwritten. Every import appends to the same growing table. A database-level uniqueness rule quietly skips any row that's an exact duplicate (same date, amount, category, note) — so it's always safe to re-upload a file if you're not sure whether you already imported it.
+Both AI features (budget benchmark and insights) call an open-weight model via OpenRouter's free router rather than a proprietary model API, so the whole project runs at zero cost. Both features degrade gracefully to a rule-based estimate if the AI call is ever unavailable, so the app never gets stuck.
 
-## What's NOT built yet (on purpose)
+## License
 
-- The visual dashboard (trends, category breakdown charts, budget vs. actual)
-- The AI benchmark-setting flow (first-time onboarding)
-- AI-generated insights ("you're overspending on X vs. last month")
-
-We're building this in stages so each piece is solid before the next depends on it. Once you've got this running and successfully imported your CSV, we'll move to the dashboard.
-
-## Deploying (when ready, still free)
-
-Push this folder to a GitHub repo, then import it on [vercel.com](https://vercel.com) (free tier). Add the same two env vars in Vercel's project settings. Every friend you invite just needs their own email to sign in — their data stays completely separate from yours.
+Personal project, built for free personal use. Not affiliated with Spendee or any budgeting app referenced.
